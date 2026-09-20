@@ -5,6 +5,7 @@ from bisect import bisect_right
 import numpy as np
 import pandas as pd
 import streamlit as st
+import importlib
 from PIL import Image, ImageOps
 from docx import Document
 from fpdf import FPDF
@@ -20,12 +21,18 @@ from fpdf import FPDF
 # ------------------------------------------------------------------------------
 @st.cache_resource(show_spinner="Menyiapkan mesin OCR (hanya sekali)...")
 def load_ocr():
+    galat = []
     try:
-        from rapidocr import RapidOCR  # paket baru (Python 3.8 - 3.13)
+        from rapidocr import RapidOCR  # paket baru (Python 3.8 - 3.13+)
         return "baru", RapidOCR()
-    except ImportError:
-        from rapidocr_onnxruntime import RapidOCR  # paket lama
+    except Exception as e:
+        galat.append(f"rapidocr -> {type(e).__name__}: {e}")
+    try:
+        RapidOCR = importlib.import_module("rapidocr_onnxruntime").RapidOCR  # paket lama (Python <= 3.12)
         return "lama", RapidOCR()
+    except Exception as e:
+        galat.append(f"rapidocr_onnxruntime -> {type(e).__name__}: {e}")
+    raise RuntimeError("\n".join(galat))
 
 
 def siapkan_gambar(img, sisi_maks=2200):
@@ -268,19 +275,24 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-st.title("▄︻デ══━一💥 ImageScan - Smart OCR Studio")
-st.caption("Pindai teks dari gambar, susun baris & kolom secara rapi, lalu ekspor ke Excel/Word/PDF - by @cakELL ")
+st.title("‎𝄃𝄂𝄂𝄀𝄁𝄃𝄂𝄂𝄃𝄂𝄃𝄂𝄃𝄂𝄂 ImageScan - Smart OCR Studio")
+st.caption("Pindai teks dari gambar, susun baris & kolom secara rapi, lalu ekspor ke Excel/Word/PDF - tanpa internet.")
 
-load_ocr()  # dimuat sekali di awal, jadi tombol Pindai langsung cepat
+try:
+    load_ocr()  # dimuat sekali di awal, jadi tombol Pindai langsung cepat
+except Exception as e:
+    st.error("Mesin OCR gagal dimuat. Salin pesan di bawah ini untuk dicek:")
+    st.code(str(e))
+    st.stop()
 
 # Sidebar
 st.sidebar.header("⚙️ Pengaturan Studio")
-mode_input = st.sidebar.radio("Sumber Gambar 🌐:", ["Upload File", "Kamera HP 📷/ Webcam 🤖"])
-mode_crop = st.sidebar.radio("Mode Ekstraksi (﹙˓ 📟 ˒﹚):", ["Seluruh Teks", "Pilih Area Teks (Crop)"])
+mode_input = st.sidebar.radio("Sumber Gambar:", ["Upload File", "Kamera HP / Webcam"])
+mode_crop = st.sidebar.radio("Mode Ekstraksi:", ["Seluruh Teks", "Pilih Area Teks (Crop)"])
 mode_susun = st.sidebar.radio(
     "Susunan Hasil:",
-    ["Tabel / daftar berkolom", "Teks biasa (per baris)🗐"],
-    help="Pilih 'Tabel' untuk daftar barang/nota/tabel. Pilih 'Teks biasa' untuk paragraf🀫.",
+    ["Tabel / daftar berkolom", "Teks biasa (per baris)"],
+    help="Pilih 'Tabel' untuk daftar barang/nota/tabel. Pilih 'Teks biasa' untuk paragraf.",
 )
 
 if "teks" not in st.session_state:
