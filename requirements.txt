@@ -1,0 +1,10 @@
+streamlit
+Pillow
+numpy
+pandas
+python-docx
+fpdf2
+openpyxl
+rapidocr
+onnxruntime
+streamlit-cropper
